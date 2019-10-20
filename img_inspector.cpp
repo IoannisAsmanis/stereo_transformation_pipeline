@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include <stdio.h>
 #include <string>
 #include <vector>
@@ -266,6 +267,17 @@ void storeJointCalibrationFile(Mat pmat_with_baseline, Size interm_size)
 	double fx = pmat_with_baseline.at<double>(0, 0),
 		dx = pmat_with_baseline.at<double>(0, 3);
 	trans_coeffs.at<double>(0, 0) = dx / fx;
+
+	/*	TODO: Find the aperture params and dump everything in some output
+	// Additionally compute FoV for the final system
+	double apertureWidth, apertureHeight;	// inputs
+	double fovx, fovy,  focalLength, aspectRatio;	// outputs
+	Point2d principalPoint;	// output
+	calibrationMatrixValues(
+		final_K, Size(TAR_WIDTH, TAR_HEIGHT), apertureWidth, apertureHeight, //inputs
+		fovx, fovy, focalLength, principalPoint, aspectRatio
+	);
+	*/
 
 	// Finally store everything in the new calib file
 	char calib_out[MAX_STR_LEN];
