@@ -40,17 +40,16 @@ inline double deg2rad (double degrees) {
  * */
 void calcOptics(char calibFilePath[], vector<double> &out_optics_left, vector<double>& out_optics_right)
 {
-    
     int width, height;
     double fovx, fovy, focalLength, aspectRatio;
     Mat K;
     Point2d pp;
     FileStorage fs(calibFilePath, FileStorage::READ);
-    
+
     fs[CALIB_IN_IMG_WIDTH] >> width;
     fs[CALIB_IN_IMG_HEIGHT] >> height;
     Size sz(width, height);
-    
+
     fs[CALIB_IN_CAMERA_MAT_LEFT] >> K;
     calibrationMatrixValues(K, sz, 0.0, 0.0, fovx, fovy, focalLength, pp, aspectRatio);
     out_optics_left.push_back(fovx);
@@ -65,7 +64,7 @@ void calcOptics(char calibFilePath[], vector<double> &out_optics_left, vector<do
 void dispFoV(vector<double> container)
 {
     cout << "FoV - Horizontal: " << container[0] << endl;
-    cout << "FoV - Vertical: " << container[1] << endl; 
+    cout << "FoV - Vertical: " << container[1] << endl;
 }
 
 
@@ -82,6 +81,6 @@ int main(int argc, char **argv)
     dispFoV(optics_left);
     cout << "RIGHT CAMERA:" << endl;
     dispFoV(optics_right);
-    
+
     return 0;
 }

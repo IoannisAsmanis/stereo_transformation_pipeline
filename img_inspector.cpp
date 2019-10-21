@@ -17,18 +17,14 @@
 //#define CROPPING_POLICY SYMMETRIC_CROPPING     // Change according to your logic
 
 // File opening definitions
-//#define DATA_ROOT "/home/galar/Documents/morocco_SFR/merzouga/merzouga-minnie-trajectory21-1/front_cam/"
-#define DATA_ROOT "/home/jackfrost/Documents/ESA/sfr_morocco/extra_files/"
-//#define LEFT_IMG_PATH "raw/left/"
-//#define RIGHT_IMG_PATH "raw/right/"
-#define LEFT_IMG_PATH ""
-#define RIGHT_IMG_PATH ""
+#define DATA_ROOT "/home/galar/Documents/morocco_SFR/merzouga/merzouga-minnie-trajectory21-1/front_cam/"
+#define LEFT_IMG_PATH "raw/left/"
+#define RIGHT_IMG_PATH "raw/right/"
 #define LEFT_MARK ""
-//#define RIGHT_MARK ""
-#define RIGHT_MARK "r"
+#define RIGHT_MARK ""
 #define IMG_FILE_FORMAT "%s%05d.pgm"
-#define IMG_DIR_START_IDX 2
-#define IMG_DIR_END_IDX 2
+#define IMG_DIR_START_IDX 0     // inclusive
+#define IMG_DIR_END_IDX 3978    // inclusive
 #define CALIB_FILE "frontcam-calibration.yaml"
 #define CALIB_IN_IMG_WIDTH "image_width"
 #define CALIB_IN_IMG_HEIGHT "image_height"
@@ -40,14 +36,14 @@
 #define CALIB_IN_TRANS_COEFFS "translation_coefficients"
 
 // Output definitions
-#define OUTPUT_IMG_DIR "/home/jackfrost/Documents/ESA/sfr_morocco/output/"
+#define OUTPUT_IMG_DIR "/home/galar/Documents/morocco_SFR/merzouga/merzouga-minnie-trajectory21-1/front_cam/output/"
 #define OUTPUT_LEFT_IMG_PATH "left/"
 #define OUTPUT_RIGHT_IMG_PATH "right/"
 #define OUTPUT_LEFT_MARK ""
 #define OUTPUT_RIGHT_MARK ""
-#define OUTPUT_DIR_START_IDX 0
+#define OUTPUT_DIR_START_IDX 0  // inclusive
 #define OUTPUT_IMG_FILE_FORMAT IMG_FILE_FORMAT
-#define OUTPUT_CALIB_DIR "/home/jackfrost/Documents/ESA/sfr_morocco/output/"
+#define OUTPUT_CALIB_DIR OUTPUT_IMG_DIR
 #define OUTPUT_CALIB_FILE "frontcam-calibration_512x512_rectified.yaml"
 
 // Utilities
@@ -58,7 +54,7 @@
 #define TITLE_PROC_FORMAT "Processed frame #%d"
 
 // Debugging
-#define DEBUG
+//#define DEBUG
 
 using namespace std;
 using namespace cv;
