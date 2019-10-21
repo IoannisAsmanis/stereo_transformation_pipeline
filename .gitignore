@@ -2,3 +2,5 @@
 **/left/**
 **/right/**
 **/extra_files/**
+**/*.swp
+**/test_poses.txt
