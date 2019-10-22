@@ -10,11 +10,7 @@
 #define ORIG_WIDTH 1280
 #define ORIG_HEIGHT 960
 #define TAR_WIDTH 512
-#define TAR_HEIGHT 512
-
-//#define SYMMETRIC_CROPPING 0
-//#define ASYMMETRIC_CROPPING 1
-//#define CROPPING_POLICY SYMMETRIC_CROPPING     // Change according to your logic
+#define TAR_HEIGHT 384
 
 // File opening definitions
 #define DATA_ROOT "/home/galar/Documents/morocco_SFR/merzouga/merzouga-minnie-trajectory21-1/front_cam/"
@@ -24,7 +20,7 @@
 #define RIGHT_MARK ""
 #define IMG_FILE_FORMAT "%s%05d.pgm"
 #define IMG_DIR_START_IDX 0     // inclusive
-#define IMG_DIR_END_IDX 3978    // inclusive
+#define IMG_DIR_END_IDX 300    // inclusive
 #define CALIB_FILE "frontcam-calibration.yaml"
 #define CALIB_IN_IMG_WIDTH "image_width"
 #define CALIB_IN_IMG_HEIGHT "image_height"
@@ -36,7 +32,7 @@
 #define CALIB_IN_TRANS_COEFFS "translation_coefficients"
 
 // Output definitions
-#define OUTPUT_IMG_DIR "/home/galar/Documents/morocco_SFR/merzouga/merzouga-minnie-trajectory21-1/front_cam/output/"
+#define OUTPUT_IMG_DIR "/home/galar/Documents/morocco_SFR/merzouga/merzouga-minnie-trajectory21-1/front_cam/output/canonical/"
 #define OUTPUT_LEFT_IMG_PATH "left/"
 #define OUTPUT_RIGHT_IMG_PATH "right/"
 #define OUTPUT_LEFT_MARK ""
@@ -44,17 +40,17 @@
 #define OUTPUT_DIR_START_IDX 0  // inclusive
 #define OUTPUT_IMG_FILE_FORMAT IMG_FILE_FORMAT
 #define OUTPUT_CALIB_DIR OUTPUT_IMG_DIR
-#define OUTPUT_CALIB_FILE "frontcam-calibration_512x512_rectified.yaml"
+#define OUTPUT_CALIB_FILE "frontcam-calibration_512x384_rectified.yaml"
 
 // Utilities
-#define MAX_STR_LEN 128
+#define MAX_STR_LEN 256
 
 // Display
 #define TITLE_ORIG_FORMAT "Original frame #%d"
 #define TITLE_PROC_FORMAT "Processed frame #%d"
 
 // Debugging
-//#define DEBUG
+#define DEBUG
 
 using namespace std;
 using namespace cv;
@@ -106,6 +102,11 @@ Size getIntermediateSize()
 		height = width / aspect_ratio_tar;
 	}
 
+#ifdef DEBUG
+    cout << "--- INTERM SZ ---" << endl;
+    cout << cvRound(width) << ", " << cvRound(height) << endl;
+#endif
+
 	return Size(cvRound(width), cvRound(height));
 }
 
@@ -129,6 +130,7 @@ void getFinalMatrices(Mat& p1, Mat&p2, Mat& out_left_map1, Mat& out_left_map2, M
     fs[CALIB_IN_TRANS_COEFFS] >> t;
 
 #ifdef DEBUG
+    cout << "--- INPUT FROM CALIB FILE ---" << endl;
     cout << c1 << endl;
     cout << c2 << endl;
     cout << d1 << endl;
@@ -215,9 +217,17 @@ void fixSinglePair(int idx, Mat lm1, Mat lm2, Mat rm1, Mat rm2)
 	resize(left_new, left_final, Size(TAR_WIDTH, TAR_HEIGHT), 0, 0, INTER_AREA);
 	resize(right_new, right_final, Size(TAR_WIDTH, TAR_HEIGHT), 0, 0, INTER_AREA);
 
+    // CAUTION: The dataset images are not corrected for differences in
+    // luminocity due to the direction of the sun. This means that it is not uncommon
+    // to get vastly different feature counts between left and right images of the same
+    // frame. One solution would be to correct images here, doing a statistical
+    // analysis to determine the effects of different exposure times to the image
+    // intensity histograms and correcting accordingly (possibly using gamma correction).
+
+
 #ifdef DEBUG
-    displayImage(left_img, idx, true, false);
-    displayImage(left_final, idx, false);
+    //displayImage(left_img, idx, true, false);
+    //displayImage(left_final, idx, false);
 #endif
 
     // Write images to a file
@@ -291,6 +301,7 @@ int main(int argc, char **argv)
     getFinalMatrices(p1, p2, lm1, lm2, rm1, rm2, isz);
 
 #ifdef DEBUG
+    cout << "--- INTERM PMATS ---" << endl;
     cout << p1 << endl;
     cout << p2 << endl;
 #endif
@@ -300,7 +311,9 @@ int main(int argc, char **argv)
 	// translation is confined only to the x axis due to rectification.
 	storeJointCalibrationFile(p2, isz);
 
-    loopOverImageDirectory(lm1, lm2, rm1, rm2);
+    if (argc > 1) {
+        loopOverImageDirectory(lm1, lm2, rm1, rm2);
+    }
 
     return 0;
 }
