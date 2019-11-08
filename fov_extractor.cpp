@@ -7,7 +7,7 @@
 #include <opencv2/opencv.hpp>
 
 // Definitions for given field of view (in DEGREES)
-#define FOV_HOR 110
+#define FOV_HOR 65
 #define FOV_VERT 96
 
 // Definitions for reading calib file

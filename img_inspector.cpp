@@ -7,21 +7,21 @@
 #include <opencv2/opencv.hpp>
 
 // Functionality definitions
-#define ORIG_WIDTH 1280
-#define ORIG_HEIGHT 960
-#define TAR_WIDTH 512
-#define TAR_HEIGHT 384
+#define ORIG_WIDTH 512
+#define ORIG_HEIGHT 284
+#define TAR_WIDTH 1120
+#define TAR_HEIGHT 1120
 
 // File opening definitions
-#define DATA_ROOT "/home/galar/Documents/morocco_SFR/merzouga/merzouga-minnie-trajectory21-1/front_cam/"
-#define LEFT_IMG_PATH "raw/left/"
-#define RIGHT_IMG_PATH "raw/right/"
-#define LEFT_MARK ""
-#define RIGHT_MARK ""
-#define IMG_FILE_FORMAT "%s%05d.pgm"
+#define DATA_ROOT "/home/galar/Documents/myts/mapping/devon_data/"
+#define LEFT_IMG_PATH ""
+#define RIGHT_IMG_PATH ""
+#define LEFT_MARK "left"
+#define RIGHT_MARK "right"
+#define IMG_FILE_FORMAT "%s_%03d.jpg"
 #define IMG_DIR_START_IDX 0     // inclusive
-#define IMG_DIR_END_IDX 300    // inclusive
-#define CALIB_FILE "frontcam-calibration.yaml"
+#define IMG_DIR_END_IDX 0    // inclusive
+#define CALIB_FILE "calibration.yaml"
 #define CALIB_IN_IMG_WIDTH "image_width"
 #define CALIB_IN_IMG_HEIGHT "image_height"
 #define CALIB_IN_CAMERA_MAT_LEFT "camera_matrix_1"
@@ -32,15 +32,15 @@
 #define CALIB_IN_TRANS_COEFFS "translation_coefficients"
 
 // Output definitions
-#define OUTPUT_IMG_DIR "/home/galar/Documents/morocco_SFR/merzouga/merzouga-minnie-trajectory21-1/front_cam/output/canonical/"
-#define OUTPUT_LEFT_IMG_PATH "left/"
-#define OUTPUT_RIGHT_IMG_PATH "right/"
-#define OUTPUT_LEFT_MARK ""
-#define OUTPUT_RIGHT_MARK ""
+#define OUTPUT_IMG_DIR "/home/galar/Documents/myts/mapping/devon_data/rect_tests/"
+#define OUTPUT_LEFT_IMG_PATH ""
+#define OUTPUT_RIGHT_IMG_PATH ""
+#define OUTPUT_LEFT_MARK "lin_left"
+#define OUTPUT_RIGHT_MARK "lin_right"
 #define OUTPUT_DIR_START_IDX 0  // inclusive
 #define OUTPUT_IMG_FILE_FORMAT IMG_FILE_FORMAT
 #define OUTPUT_CALIB_DIR OUTPUT_IMG_DIR
-#define OUTPUT_CALIB_FILE "frontcam-calibration_512x384_rectified.yaml"
+#define OUTPUT_CALIB_FILE "updated_calibration_1120x1120_rectified.yaml"
 
 // Utilities
 #define MAX_STR_LEN 256
@@ -213,9 +213,13 @@ void fixSinglePair(int idx, Mat lm1, Mat lm2, Mat rm1, Mat rm2)
     remap(right_img, right_new, rm1, rm2, INTER_LINEAR);
 
 	// Resize them to their final size, using INTER_AREA interpolation to avoid Moire effects
+    // when sizing down, INTER_CUBIC for better performance when sizing up
+    bool zooming_in = (left_new.rows < TAR_HEIGHT);
 	Mat left_final, right_final;
-	resize(left_new, left_final, Size(TAR_WIDTH, TAR_HEIGHT), 0, 0, INTER_AREA);
-	resize(right_new, right_final, Size(TAR_WIDTH, TAR_HEIGHT), 0, 0, INTER_AREA);
+	resize(left_new, left_final, Size(TAR_WIDTH, TAR_HEIGHT), 0, 0,
+            (zooming_in ? INTER_CUBIC : INTER_AREA));
+	resize(right_new, right_final, Size(TAR_WIDTH, TAR_HEIGHT), 0, 0,
+            (zooming_in ? INTER_CUBIC : INTER_AREA));
 
     // CAUTION: The dataset images are not corrected for differences in
     // luminocity due to the direction of the sun. This means that it is not uncommon
