@@ -3,25 +3,27 @@
 #include <stdio.h>
 #include <string>
 #include <vector>
+#include <thread>
+#include <ctime>
 
 #include <opencv2/opencv.hpp>
 
 // Functionality definitions
-#define ORIG_WIDTH 512
-#define ORIG_HEIGHT 284
-#define TAR_WIDTH 1120
-#define TAR_HEIGHT 1120
+#define ORIG_WIDTH 1280
+#define ORIG_HEIGHT 960
+#define TAR_WIDTH 700
+#define TAR_HEIGHT 500
 
 // File opening definitions
-#define DATA_ROOT "/home/galar/Documents/myts/mapping/devon_data/"
-#define LEFT_IMG_PATH ""
-#define RIGHT_IMG_PATH ""
-#define LEFT_MARK "left"
-#define RIGHT_MARK "right"
-#define IMG_FILE_FORMAT "%s_%03d.jpg"
+#define DATA_ROOT "/home/galar/Documents/morocco_SFR/merzouga/merzouga-minnie-trajectory21-1/front_cam/"
+#define LEFT_IMG_PATH "raw/left/"
+#define RIGHT_IMG_PATH "raw/right/"
+#define LEFT_MARK ""
+#define RIGHT_MARK ""
+#define IMG_FILE_FORMAT "%s%05d.pgm"
 #define IMG_DIR_START_IDX 0     // inclusive
-#define IMG_DIR_END_IDX 0    // inclusive
-#define CALIB_FILE "calibration.yaml"
+#define IMG_DIR_END_IDX 3978    // inclusive
+#define CALIB_FILE "frontcam-calibration.yaml"
 #define CALIB_IN_IMG_WIDTH "image_width"
 #define CALIB_IN_IMG_HEIGHT "image_height"
 #define CALIB_IN_CAMERA_MAT_LEFT "camera_matrix_1"
@@ -32,15 +34,15 @@
 #define CALIB_IN_TRANS_COEFFS "translation_coefficients"
 
 // Output definitions
-#define OUTPUT_IMG_DIR "/home/galar/Documents/myts/mapping/devon_data/rect_tests/"
-#define OUTPUT_LEFT_IMG_PATH ""
-#define OUTPUT_RIGHT_IMG_PATH ""
-#define OUTPUT_LEFT_MARK "lin_left"
-#define OUTPUT_RIGHT_MARK "lin_right"
+#define OUTPUT_IMG_DIR "/home/galar/Documents/morocco_SFR/merzouga/merzouga-minnie-trajectory21-1/front_cam/threaded/"
+#define OUTPUT_LEFT_IMG_PATH "left/"
+#define OUTPUT_RIGHT_IMG_PATH "right/"
+#define OUTPUT_LEFT_MARK ""
+#define OUTPUT_RIGHT_MARK ""
 #define OUTPUT_DIR_START_IDX 0  // inclusive
 #define OUTPUT_IMG_FILE_FORMAT IMG_FILE_FORMAT
 #define OUTPUT_CALIB_DIR OUTPUT_IMG_DIR
-#define OUTPUT_CALIB_FILE "updated_calibration_1120x1120_rectified.yaml"
+#define OUTPUT_CALIB_FILE "updated_calibration_700x500_rectified.yaml"
 
 // Utilities
 #define MAX_STR_LEN 256
@@ -50,7 +52,7 @@
 #define TITLE_PROC_FORMAT "Processed frame #%d"
 
 // Debugging
-#define DEBUG
+//#define DEBUG
 
 using namespace std;
 using namespace cv;
@@ -242,11 +244,11 @@ void fixSinglePair(int idx, Mat lm1, Mat lm2, Mat rm1, Mat rm2)
 
 /**
  * This function loops over the image directories and fixes the stereo pairs
- * one at a time, storing the results in the corresponding output directories
+ * one at a time, storing the results in the corresponding output directories.
  * */
-void loopOverImageDirectory(Mat left_map_1, Mat left_map_2, Mat right_map_1, Mat right_map_2)
+void loopOverImageDirectory(Mat left_map_1, Mat left_map_2, Mat right_map_1, Mat right_map_2, int range_start, int range_end)
 {
-    for (int i=IMG_DIR_START_IDX; i<=IMG_DIR_END_IDX; i++) {
+    for (int i=range_start; i<=range_end; i++) {
         fixSinglePair(i, left_map_1, left_map_2, right_map_1, right_map_2);
     }
 }
@@ -294,6 +296,24 @@ void storeJointCalibrationFile(Mat pmat_with_baseline, Size interm_size)
 }
 
 
+int getThreadCount()
+{
+    unsigned result = std::thread::hardware_concurrency()/2;
+    return (result == 0 ? 1 : result);
+}
+
+vector<int> getRangeOrigins(int nRanges)
+{
+    int start = IMG_DIR_START_IDX, end = IMG_DIR_END_IDX;
+    int width = (end-start+1)/nRanges;
+    vector<int> res;
+    for (register unsigned i=0; i<nRanges; i++) {
+        res.push_back(i*width+start);
+    }
+    return res;
+}
+
+
 /**
  * Driver function for the above utilities
  * */
@@ -316,7 +336,40 @@ int main(int argc, char **argv)
 	storeJointCalibrationFile(p2, isz);
 
     if (argc > 1) {
-        loopOverImageDirectory(lm1, lm2, rm1, rm2);
+        int n_threads = getThreadCount();
+        clock_t t;
+        t = clock();
+
+        if (n_threads <= 1) {
+            cout << "Executing single-thread solution... ";
+            loopOverImageDirectory(lm1, lm2, rm1, rm2,
+                    IMG_DIR_START_IDX, IMG_DIR_END_IDX);
+            cout << "DONE" << endl;
+        } else {
+
+            cout << "Multithreading factor: " << n_threads << "... ";
+
+            vector<int> sectors = getRangeOrigins(n_threads);
+            int range = sectors[1]-sectors[0];
+            thread *ths[n_threads];
+
+            for (register unsigned i=0; i<n_threads; i++) {
+                ths[i] = new thread(loopOverImageDirectory, lm1, lm2, rm1, rm2,
+                        sectors[i], sectors[i]+range-1);
+            }
+
+            for (register unsigned i=0; i<n_threads; i++) {
+                ths[i]->join();
+#ifdef DEBUG
+                cout << "Joining thread #" << i << endl;
+#endif
+                delete ths[i];
+            }
+            cout << "DONE" << endl;
+        }
+
+        t = clock()-t;
+        cout << "Total execution time: " << ((float) t) / CLOCKS_PER_SEC << "s" << endl;
     }
 
     return 0;
