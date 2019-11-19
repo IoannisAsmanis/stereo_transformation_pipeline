@@ -355,7 +355,7 @@ int main(int argc, char **argv)
 
             for (register unsigned i=0; i<n_threads; i++) {
                 ths[i] = new thread(loopOverImageDirectory, lm1, lm2, rm1, rm2,
-                        sectors[i], sectors[i]+range-1);
+                        sectors[i], ((i == n_threads-1) ? IMG_DIR_END_IDX : sectors[i]+range-1));
             }
 
             for (register unsigned i=0; i<n_threads; i++) {
