@@ -200,28 +200,49 @@ void printImgToFile(Mat img, int idx_in, bool isLeft)
 }
 
 
+void fixSingleImage(int idx, Mat m1, Mat m2, bool isLeft, bool zooming_in)
+{
+	Mat img = getImgMat(idx, isLeft), img_new, img_final;
+    remap(img, img_new, m1, m2, INTER_LINEAR);
+	resize(img_new, img_final, Size(TAR_WIDTH, TAR_HEIGHT), 0, 0,
+		(zooming_in ? INTER_CUBIC : INTER_AREA));
+	printImgToFile(img_final, idx, isLeft);
+}
+
 /**
  * Function that accepts an index and the necessary matrices to
  * transform a left-right stereo image pair to the appropriate
  * format and store the results in the corresponding output
  * image files
  * */
-void fixSinglePair(int idx, Mat lm1, Mat lm2, Mat rm1, Mat rm2)
+void fixSinglePair(int idx, Mat lm1, Mat lm2, Mat rm1, Mat rm2, bool zooming_in)
 {
 	// Rectify images and simultaneously fix their aspect ratios
-    Mat left_img = getImgMat(idx), right_img = getImgMat(idx, false);
-    Mat left_new, right_new;
-    remap(left_img, left_new, lm1, lm2, INTER_LINEAR);
-    remap(right_img, right_new, rm1, rm2, INTER_LINEAR);
+    //Mat left_img = getImgMat(idx), right_img = getImgMat(idx, false);
+	Mat left_img, right_img;
+
+	thread *tleft, *tright;
+
+    tleft = new thread(fixSingleImage, idx, lm1, lm2, true, zooming_in);
+    tright = new thread(fixSingleImage, idx, rm1, rm2, false, zooming_in);
+	
+	tleft->join();
+	tright->join();
+	
+	delete tleft;
+	delete tright;
+
+	//Mat left_new, right_new;
+    //remap(left_img, left_new, lm1, lm2, INTER_LINEAR);
+    //remap(right_img, right_new, rm1, rm2, INTER_LINEAR);
 
 	// Resize them to their final size, using INTER_AREA interpolation to avoid Moire effects
     // when sizing down, INTER_CUBIC for better performance when sizing up
-    bool zooming_in = (left_new.rows < TAR_HEIGHT);
-	Mat left_final, right_final;
-	resize(left_new, left_final, Size(TAR_WIDTH, TAR_HEIGHT), 0, 0,
-            (zooming_in ? INTER_CUBIC : INTER_AREA));
-	resize(right_new, right_final, Size(TAR_WIDTH, TAR_HEIGHT), 0, 0,
-            (zooming_in ? INTER_CUBIC : INTER_AREA));
+	//Mat left_final, right_final;
+	//resize(left_new, left_final, Size(TAR_WIDTH, TAR_HEIGHT), 0, 0,
+    //        (zooming_in ? INTER_CUBIC : INTER_AREA));
+	//resize(right_new, right_final, Size(TAR_WIDTH, TAR_HEIGHT), 0, 0,
+    //        (zooming_in ? INTER_CUBIC : INTER_AREA));
 
     // CAUTION: The dataset images are not corrected for differences in
     // luminocity due to the direction of the sun. This means that it is not uncommon
@@ -237,8 +258,8 @@ void fixSinglePair(int idx, Mat lm1, Mat lm2, Mat rm1, Mat rm2)
 #endif
 
     // Write images to a file
-	printImgToFile(left_final, idx, true);
-	printImgToFile(right_final, idx, false);
+	//printImgToFile(left_final, idx, true);
+	//printImgToFile(right_final, idx, false);
 }
 
 
@@ -246,10 +267,10 @@ void fixSinglePair(int idx, Mat lm1, Mat lm2, Mat rm1, Mat rm2)
  * This function loops over the image directories and fixes the stereo pairs
  * one at a time, storing the results in the corresponding output directories.
  * */
-void loopOverImageDirectory(Mat left_map_1, Mat left_map_2, Mat right_map_1, Mat right_map_2, int range_start, int range_end)
+void loopOverImageDirectory(Mat left_map_1, Mat left_map_2, Mat right_map_1, Mat right_map_2, bool zooming_in, int range_start, int range_end)
 {
     for (int i=range_start; i<=range_end; i++) {
-        fixSinglePair(i, left_map_1, left_map_2, right_map_1, right_map_2);
+        fixSinglePair(i, left_map_1, left_map_2, right_map_1, right_map_2, zooming_in);
     }
 }
 
@@ -298,7 +319,7 @@ void storeJointCalibrationFile(Mat pmat_with_baseline, Size interm_size)
 
 int getThreadCount()
 {
-    unsigned result = std::thread::hardware_concurrency()/2;
+    unsigned result = std::thread::hardware_concurrency()/4;
     return (result == 0 ? 1 : result);
 }
 
@@ -324,6 +345,8 @@ int main(int argc, char **argv)
 	Size isz;
     getFinalMatrices(p1, p2, lm1, lm2, rm1, rm2, isz);
 
+	bool zooming_in = (isz.height < TAR_HEIGHT);
+
 #ifdef DEBUG
     cout << "--- INTERM PMATS ---" << endl;
     cout << p1 << endl;
@@ -342,19 +365,19 @@ int main(int argc, char **argv)
 
         if (n_threads <= 1) {
             cout << "Executing single-thread solution... ";
-            loopOverImageDirectory(lm1, lm2, rm1, rm2,
+            loopOverImageDirectory(lm1, lm2, rm1, rm2, zooming_in,
                     IMG_DIR_START_IDX, IMG_DIR_END_IDX);
             cout << "DONE" << endl;
         } else {
 
-            cout << "Multithreading factor: " << n_threads << "... ";
+            cout << "Multithreading factor: " << n_threads*2 << "... ";
 
             vector<int> sectors = getRangeOrigins(n_threads);
             int range = sectors[1]-sectors[0];
             thread *ths[n_threads];
 
             for (register unsigned i=0; i<n_threads; i++) {
-                ths[i] = new thread(loopOverImageDirectory, lm1, lm2, rm1, rm2,
+                ths[i] = new thread(loopOverImageDirectory, lm1, lm2, rm1, rm2, zooming_in,
                         sectors[i], ((i == n_threads-1) ? IMG_DIR_END_IDX : sectors[i]+range-1));
             }
 
