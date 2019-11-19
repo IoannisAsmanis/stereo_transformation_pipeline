@@ -3,6 +3,10 @@
 import sys
 import os
 
+"""
+Read a file from disk and convert the data to a list of lists of floats
+Only keep data per line from poseStartIdx to poseEndIdx
+"""
 def readFileToList(fileName, poseStartIdx, poseEndIdx, delim):
     with open(fileName, "r") as f:
         data = f.readlines()
@@ -14,11 +18,20 @@ def readFileToList(fileName, poseStartIdx, poseEndIdx, delim):
     return pose_list
 
 
+"""
+Filter through a list of lists of floats
+Each line in the output will contain:
+1. an incrementing counter per line
+2. the pose data
+Additionally, if offsetId is NOT None, every pose will become
+equal to its value - the value of the pose at offsetId,
+meaning that at poses[offsetId] will be treated as 0
+"""
 def writeToFile(poses, outputFileName, outputIdxs=None, offsetId=None):
     counter = 0
     outputFilt = outputIdxs if (outputIdxs != None) else list(range(len(poses[0])))
     offsets = [poses[offsetId][of] for of in outputFilt] if (offsetId != None) else [0] * len(outputFilt)
-    print(offsets)
+    #print(offsets)
 
     with open(outputFileName, "w") as f:
         for pose in poses:
@@ -31,6 +44,7 @@ def writeToFile(poses, outputFileName, outputIdxs=None, offsetId=None):
                 f.write('\t' if i < len(outputFilt)-1 else '\n')
 
 
+# Driver code, usage: $ python3 gt_extractor.py <ALL_METADATA_FILE_PATH> <OUTPUT_FILE_PATH>
 if __name__=='__main__':
     if (len(sys.argv) != 3):
         print("Wrong number of args supplied!")
