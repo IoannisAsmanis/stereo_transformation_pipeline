@@ -331,9 +331,12 @@ void storeJointCalibrationFile(Mat pmat_with_baseline, Size interm_size)
  * */
 int getThreadCount()
 {
+#ifdef MULTI_THREADING
     unsigned result = std::thread::hardware_concurrency()/2;
-    //return (result == 0 ? 1 : result);
+    return (result == 0 ? 1 : result);
+#else
     return 1;
+#endif
 }
 
 
