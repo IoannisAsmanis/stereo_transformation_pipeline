@@ -29,7 +29,7 @@
 #define CALIB_IN_TRANS_COEFFS "translation_coefficients"
 
 // Uncomment for debuggin output
-#define DEBUG
+//#define DEBUG
 
 
 /* Global variables to simplify function signatures */
@@ -95,7 +95,7 @@ using namespace cv;
 /**
  * This function obtains a cv::Mat representation of an image file from disk
  * */
-Mat getImgMat(int index, bool isLeft=true, bool isGrayscale=true)
+Mat getImgMat(int index, bool isLeft=true)
 {
     char fname[MAX_STR_LEN], file_template[MAX_STR_LEN];
     strcpy(file_template, DATA_ROOT);
@@ -103,7 +103,7 @@ Mat getImgMat(int index, bool isLeft=true, bool isGrayscale=true)
     strcat(file_template, IMG_FILE_FORMAT);
     sprintf(fname, file_template, ((isLeft) ? LEFT_MARK : RIGHT_MARK), index);
 
-    Mat res = imread(fname, ((isGrayscale) ? IMREAD_GRAYSCALE : IMREAD_COLOR));
+    Mat res = imread(fname, ((IMG_GRAYSCALE) ? IMREAD_GRAYSCALE : IMREAD_COLOR));
     if (!res.data) {
         cerr << "Error loading image file: "
             << fname
@@ -332,7 +332,8 @@ void storeJointCalibrationFile(Mat pmat_with_baseline, Size interm_size)
 int getThreadCount()
 {
     unsigned result = std::thread::hardware_concurrency()/2;
-    return (result == 0 ? 1 : result);
+    //return (result == 0 ? 1 : result);
+    return 1;
 }
 
 
@@ -394,7 +395,7 @@ int main(int argc, char **argv)
 	// p=projection matrices, lm=left image maps, rm=right image maps
     Mat p1, p2, lm1, lm2, rm1, rm2, query;
     // Use query to dynamically determine the dimensions of the input images
-    query = getImgMat(IMG_DIR_START_IDX, true, IMG_GRAYSCALE);
+    query = getImgMat(IMG_DIR_START_IDX, true);
 
     // Compute maps and the intermediate size
 	Size isz;

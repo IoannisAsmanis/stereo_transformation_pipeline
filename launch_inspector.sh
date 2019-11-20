@@ -1,6 +1,7 @@
 ## Remember:
 # All arguments are mandatory
 # Directory indeces are inclusive
+# Specifying grayscale will still work with color images, converting the output to grayscale using OpenCV defaults. If you want to retain color channels specify "color" (or any other string other than "grayscale").
 # Paths must end in '/'
 # Calibration files must adhere to the specified format, see macros of source code and example file!
 
@@ -17,5 +18,4 @@
 #    "" "" "leftcam" "rightcam" "IMG_%s_%03d_stereo.jpg" "frontcam-calibration.yaml"\
 #    "/home/galar/Documents/morocco_SFR/merzouga/merzouga-minnie-trajectory21-1/front_cam/threaded/" "" "" "left" "right" "%s-%03d.jpg"\
 #    "/home/galar/Documents/morocco_SFR/merzouga/merzouga-minnie-trajectory21-1/front_cam/threaded/" "updated_calibration_700x500.yaml"
-
 
