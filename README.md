@@ -35,4 +35,4 @@ files. If this is a major issue, edit the macros at the top of `img_inspector.cp
 ## Additional executable
 `fov_extractor` is an additional utility that allows you to estimate the Field of View of a camera given its intrinsic parameters.
 The tool relies on an OpenCV function that can do more than just that, provided that the camera aperture dimensions are known.
-If these are known, pass them in as extra CL args (should be expressed in mm) and the output will contain additional information.
+If these are known, pass them in as extra CL args (should be expressed in mm) and the output will contain additional information. See `launch_extractor.sh` for more information.
