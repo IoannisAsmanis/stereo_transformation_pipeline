@@ -11,7 +11,7 @@ This software requires:
 - CMake (>= 2.8)
 - C++11
 - OpenCV (tested with 2.4.9.1)
-- Pthread
+- Pthread (optional)
 
 ## Building
 Clone the repository on your system. Then run:
@@ -25,6 +25,7 @@ make
 ```
 
 This should generate an `img_inspector` executable in the `build` folder.
+If `Pthread` is available the inspector will use it, which can reduce the runtime by approximately 20%. If it isn't available, the single-thread version will automatically be compiled and ran instead.
 
 ## Usage
 To easily use the program use the `launch_img_inspector.sh` script, which comes ready with two examples.
