@@ -4,3 +4,6 @@
 **/extra_files/**
 **/*.swp
 **/test_poses.txt
+**/output/**
+**/extra_files/**
+gt_extractor.py

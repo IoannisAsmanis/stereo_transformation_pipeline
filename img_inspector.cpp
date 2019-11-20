@@ -8,22 +8,17 @@
 
 #include <opencv2/opencv.hpp>
 
-// Functionality definitions
-#define ORIG_WIDTH 1280
-#define ORIG_HEIGHT 960
-#define TAR_WIDTH 700
-#define TAR_HEIGHT 500
+// CLI (2+3+1+6+1+8)
+#define NUM_COMMAND_LINE_ARGS 21
 
-// File opening definitions
-#define DATA_ROOT "/home/galar/Documents/morocco_SFR/merzouga/merzouga-minnie-trajectory21-1/front_cam/"
-#define LEFT_IMG_PATH "raw/left/"
-#define RIGHT_IMG_PATH "raw/right/"
-#define LEFT_MARK ""
-#define RIGHT_MARK ""
-#define IMG_FILE_FORMAT "%s%05d.pgm"
-#define IMG_DIR_START_IDX 0     // inclusive
-#define IMG_DIR_END_IDX 3978    // inclusive
-#define CALIB_FILE "frontcam-calibration.yaml"
+// Utility
+#define MAX_STR_LEN 512
+
+// Display
+#define TITLE_ORIG_FORMAT "Original frame #%d"
+#define TITLE_PROC_FORMAT "Processed frame #%d"
+
+// Calibration structure definitions
 #define CALIB_IN_IMG_WIDTH "image_width"
 #define CALIB_IN_IMG_HEIGHT "image_height"
 #define CALIB_IN_CAMERA_MAT_LEFT "camera_matrix_1"
@@ -33,26 +28,65 @@
 #define CALIB_IN_ROT_MAT "rotation_matrix"
 #define CALIB_IN_TRANS_COEFFS "translation_coefficients"
 
-// Output definitions
-#define OUTPUT_IMG_DIR "/home/galar/Documents/morocco_SFR/merzouga/merzouga-minnie-trajectory21-1/front_cam/threaded/"
-#define OUTPUT_LEFT_IMG_PATH "left/"
-#define OUTPUT_RIGHT_IMG_PATH "right/"
-#define OUTPUT_LEFT_MARK ""
-#define OUTPUT_RIGHT_MARK ""
-#define OUTPUT_DIR_START_IDX 0  // inclusive
-#define OUTPUT_IMG_FILE_FORMAT IMG_FILE_FORMAT
-#define OUTPUT_CALIB_DIR OUTPUT_IMG_DIR
-#define OUTPUT_CALIB_FILE "updated_calibration_700x500_rectified.yaml"
+// Uncomment for debuggin output
+#define DEBUG
 
-// Utilities
-#define MAX_STR_LEN 256
 
-// Display
-#define TITLE_ORIG_FORMAT "Original frame #%d"
-#define TITLE_PROC_FORMAT "Processed frame #%d"
+/* Global variables to simplify function signatures */
+// NOTES:
+// - Most of the global variables used in this program
+// need to be supplied as command-line arguments. Remember
+// that they ALL need to be present, including empty strings.
+// - Also remember that system path variables must always end
+// in a '/' character!
+// - Finally, images can be named with any convention of the form:
+// [optional characters]<STRING_MARK(possibly empty)>[optional characters]<FORMATTED_INTEGER_INDEX>[optional characters + file suffix]
+// If you need to switch to index-before-string convention, then
+// search through the code for calls to sprintf() and fix the ordering
+// of its arguments where applicable.
 
-// Debugging
-//#define DEBUG
+// Below are the variables, with (x) indicating how many
+// per block are found from CL args
+
+// Functionality variables
+int
+    // Image dimensions (2)
+    ORIG_WIDTH, // auto-detected
+    ORIG_HEIGHT,    // auto-detected
+    TAR_WIDTH,
+    TAR_HEIGHT,
+
+    // Directory indeces (3)
+    IMG_DIR_START_IDX,     // inclusive
+    IMG_DIR_END_IDX,    // inclusive
+    OUTPUT_DIR_START_IDX;   // inclusive
+
+// Type variables (1)
+bool IMG_GRAYSCALE;
+
+// File opening variables
+char
+    // Input (6)
+    DATA_ROOT[MAX_STR_LEN],
+    LEFT_IMG_PATH[MAX_STR_LEN],
+    RIGHT_IMG_PATH[MAX_STR_LEN],
+    LEFT_MARK[MAX_STR_LEN],
+    RIGHT_MARK[MAX_STR_LEN],
+    IMG_FILE_FORMAT[MAX_STR_LEN],
+
+    // Calibration (1)
+    CALIB_FILE[MAX_STR_LEN],
+
+    // Output (8)
+    OUTPUT_IMG_DIR[MAX_STR_LEN],
+    OUTPUT_LEFT_IMG_PATH[MAX_STR_LEN],
+    OUTPUT_RIGHT_IMG_PATH[MAX_STR_LEN],
+    OUTPUT_LEFT_MARK[MAX_STR_LEN],
+    OUTPUT_RIGHT_MARK[MAX_STR_LEN],
+    OUTPUT_IMG_FILE_FORMAT[MAX_STR_LEN],
+    OUTPUT_CALIB_DIR[MAX_STR_LEN],
+    OUTPUT_CALIB_FILE[MAX_STR_LEN];
+
 
 using namespace std;
 using namespace cv;
@@ -77,6 +111,9 @@ Mat getImgMat(int index, bool isLeft=true, bool isGrayscale=true)
         exit(1);
     }
 
+    ORIG_WIDTH = res.cols;
+    ORIG_HEIGHT = res.rows;
+
 #ifdef DEBUG
     cout << fname << endl;
 #endif
@@ -96,7 +133,7 @@ Size getIntermediateSize()
 
 	double width = ORIG_WIDTH, height = ORIG_HEIGHT;
 
-	// Only edit one dimension, e.g. if we're narrowing an image, only 
+	// Only edit one dimension, e.g. if we're narrowing an image, only
 	// width needs to change
 	if (aspect_ratio_orig > aspect_ratio_tar) {
 		width = height * aspect_ratio_tar;
@@ -223,14 +260,6 @@ void fixSinglePair(int idx, Mat lm1, Mat lm2, Mat rm1, Mat rm2)
 	resize(right_new, right_final, Size(TAR_WIDTH, TAR_HEIGHT), 0, 0,
             (zooming_in ? INTER_CUBIC : INTER_AREA));
 
-    // CAUTION: The dataset images are not corrected for differences in
-    // luminocity due to the direction of the sun. This means that it is not uncommon
-    // to get vastly different feature counts between left and right images of the same
-    // frame. One solution would be to correct images here, doing a statistical
-    // analysis to determine the effects of different exposure times to the image
-    // intensity histograms and correcting accordingly (possibly using gamma correction).
-
-
 #ifdef DEBUG
     //displayImage(left_img, idx, true, false);
     //displayImage(left_final, idx, false);
@@ -296,12 +325,21 @@ void storeJointCalibrationFile(Mat pmat_with_baseline, Size interm_size)
 }
 
 
+/**
+ * Get a HW-dependent estimation on the optimal number of threads
+ * to spawn on your system.
+ * */
 int getThreadCount()
 {
     unsigned result = std::thread::hardware_concurrency()/2;
     return (result == 0 ? 1 : result);
 }
 
+
+/**
+ * Get a vector containing the start indeces for each span of
+ * image data to be fed to the worker threads of this program.
+ * */
 vector<int> getRangeOrigins(int nRanges)
 {
     int start = IMG_DIR_START_IDX, end = IMG_DIR_END_IDX;
@@ -319,8 +357,46 @@ vector<int> getRangeOrigins(int nRanges)
  * */
 int main(int argc, char **argv)
 {
+
+    if (argc != NUM_COMMAND_LINE_ARGS+1) {
+        cerr << "Unexpected number of arguments, aborting!" << endl;
+        exit(1);
+    } else {
+        unsigned arg_idx=1;
+        TAR_WIDTH = atoi(argv[arg_idx++]);
+        TAR_HEIGHT = atoi(argv[arg_idx++]);
+        IMG_DIR_START_IDX = atoi(argv[arg_idx++]);
+        IMG_DIR_END_IDX = atoi(argv[arg_idx++]);
+        OUTPUT_DIR_START_IDX = atoi(argv[arg_idx++]);
+
+        IMG_GRAYSCALE = !(strcmp(argv[arg_idx++], "grayscale"));
+
+        strcpy(DATA_ROOT, argv[arg_idx++]);
+        strcpy(LEFT_IMG_PATH, argv[arg_idx++]);
+        strcpy(RIGHT_IMG_PATH, argv[arg_idx++]);
+        strcpy(LEFT_MARK, argv[arg_idx++]);
+        strcpy(RIGHT_MARK, argv[arg_idx++]);
+        strcpy(IMG_FILE_FORMAT, argv[arg_idx++]);
+
+        strcpy(CALIB_FILE, argv[arg_idx++]);
+
+        strcpy(OUTPUT_IMG_DIR, argv[arg_idx++]);
+        strcpy(OUTPUT_LEFT_IMG_PATH, argv[arg_idx++]);
+        strcpy(OUTPUT_RIGHT_IMG_PATH, argv[arg_idx++]);
+        strcpy(OUTPUT_LEFT_MARK, argv[arg_idx++]);
+        strcpy(OUTPUT_RIGHT_MARK, argv[arg_idx++]);
+        strcpy(OUTPUT_IMG_FILE_FORMAT, argv[arg_idx++]);
+        strcpy(OUTPUT_CALIB_DIR, argv[arg_idx++]);
+        strcpy(OUTPUT_CALIB_FILE, argv[arg_idx++]);
+    }
+
+
 	// p=projection matrices, lm=left image maps, rm=right image maps
-    Mat p1, p2, lm1, lm2, rm1, rm2;
+    Mat p1, p2, lm1, lm2, rm1, rm2, query;
+    // Use query to dynamically determine the dimensions of the input images
+    query = getImgMat(IMG_DIR_START_IDX, true, IMG_GRAYSCALE);
+
+    // Compute maps and the intermediate size
 	Size isz;
     getFinalMatrices(p1, p2, lm1, lm2, rm1, rm2, isz);
 
@@ -335,42 +411,46 @@ int main(int argc, char **argv)
 	// translation is confined only to the x axis due to rectification.
 	storeJointCalibrationFile(p2, isz);
 
-    if (argc > 1) {
-        int n_threads = getThreadCount();
-        clock_t t;
-        t = clock();
+    // The implementation uses multithreading from here on
+    // If you compiled OpenCV with parallelization support,
+    // OpenCV tasks used here are already running in parallel
+    // The additional parallelization introduced here helps
+    // reduce disk I/O overheads, resulting in up to 20% acceleration
+    // for a 4-core hyperthreaded i7
+    int n_threads = getThreadCount();
+    clock_t t;
+    t = clock();
 
-        if (n_threads <= 1) {
-            cout << "Executing single-thread solution... ";
-            loopOverImageDirectory(lm1, lm2, rm1, rm2,
-                    IMG_DIR_START_IDX, IMG_DIR_END_IDX);
-            cout << "DONE" << endl;
-        } else {
+    if (n_threads <= 1 || IMG_DIR_END_IDX - IMG_DIR_START_IDX < 2*n_threads) {
+        cout << "Executing single-thread solution... ";
+        loopOverImageDirectory(lm1, lm2, rm1, rm2,
+                IMG_DIR_START_IDX, IMG_DIR_END_IDX);
+        cout << "DONE" << endl;
+    } else {
 
-            cout << "Multithreading factor: " << n_threads << "... ";
+        cout << "Multithreading factor: " << n_threads << "... ";
 
-            vector<int> sectors = getRangeOrigins(n_threads);
-            int range = sectors[1]-sectors[0];
-            thread *ths[n_threads];
+        vector<int> sectors = getRangeOrigins(n_threads);
+        int range = sectors[1]-sectors[0];
+        thread *ths[n_threads];
 
-            for (register unsigned i=0; i<n_threads; i++) {
-                ths[i] = new thread(loopOverImageDirectory, lm1, lm2, rm1, rm2,
-                        sectors[i], ((i == n_threads-1) ? IMG_DIR_END_IDX : sectors[i]+range-1));
-            }
-
-            for (register unsigned i=0; i<n_threads; i++) {
-                ths[i]->join();
-#ifdef DEBUG
-                cout << "Joining thread #" << i << endl;
-#endif
-                delete ths[i];
-            }
-            cout << "DONE" << endl;
+        for (register unsigned i=0; i<n_threads; i++) {
+            ths[i] = new thread(loopOverImageDirectory, lm1, lm2, rm1, rm2,
+                    sectors[i], ((i == n_threads-1) ? IMG_DIR_END_IDX : sectors[i]+range-1));
         }
 
-        t = clock()-t;
-        cout << "Total execution time: " << ((float) t) / CLOCKS_PER_SEC << "s" << endl;
+        for (register unsigned i=0; i<n_threads; i++) {
+            ths[i]->join();
+#ifdef DEBUG
+            cout << "Joining thread #" << i << endl;
+#endif
+            delete ths[i];
+        }
+        cout << "DONE" << endl;
     }
+
+    t = clock()-t;
+    cout << "Total execution time: " << ((float) t) / CLOCKS_PER_SEC << "s" << endl;
 
     return 0;
 }
