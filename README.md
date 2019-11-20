@@ -30,7 +30,7 @@ This should generate an `img_inspector` executable in the `build` folder.
 To easily use the program use the `launch_img_inspector.sh` script, which comes ready with two examples.
 Pay close attention to the notes on how the arguments should be configured.
 Also look closely at the `example_calibration.yaml` file and follow this structure *exactly* for your calibration
-files. If this is a major issue, edit the macros at the top of `img_inspector.cpp` and run make again.
+files. If this is a major issue, edit the macros at the top of `img_inspector.cpp` to reflect your particular `.yaml` naming scheme and run `make` again.
 
 ## Additional executable
 `fov_extractor` is an additional utility that allows you to estimate the Field of View of a camera given its intrinsic parameters.
